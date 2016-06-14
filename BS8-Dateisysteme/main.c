@@ -93,24 +93,15 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 			return 1;
 
 		char bufeleventoend[targetsize - 10];
-		error = read(filedescriptorZiel, bufeleventoend, targetsize - 10);
-		if (error == -1) {
-			printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
-		} else {
-			printf("Datei konnte gelesen werden!\n");
-		}
+		backupFileContent(filedescriptorZiel,bufeleventoend,targetsize-10);
+
 
 		/* In Zieldatei schreiben */
-		char bufZiel[quellsize];
-		size_t nbytesZiel = sizeof(bufZiel);
 		ssize_t bytes_written;
-		strcpy(bufZiel, bufQuelle);
 
 		char lastchars[11];
-		char tentotwentyone[10];
 
 		strncpy(lastchars, bufQuelle + quellsize - 11, 10);
-		printf(lastchars);
 
 		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
 			return 1;
@@ -119,21 +110,14 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 		bytes_written = write(filedescriptorZiel, bufeleventoend,
 				sizeof(bufeleventoend));
 
-		puts(bufZiel);
 
-		printf("neue datei >>\n");
+		//Neue zusammengestellte Datei ausgeben
 		stat(zieldatei, &zielstat);
 		targetsize = (long long) zielstat.st_size;
 		char fulltarget[targetsize];
 		if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)
 			return 1;
-		error = read(filedescriptorZiel, fulltarget, targetsize);
-		if (error == -1) {
-			printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
-		} else {
-			printf("Datei konnte gelesen werden!\n");
-		}
-
+		backupFileContent(filedescriptorZiel,fulltarget,targetsize);
 		puts(fulltarget);
 
 		/* Dateien schließen */
