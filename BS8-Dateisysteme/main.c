@@ -16,11 +16,22 @@
 #include <unistd.h>
 #include <string.h>
 
+
+void backupFileContent(int descriptor, char *buffer, int size);
+
 int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 	int anzahlArgumente = argc - 1;
 	char * quelldatei;
 	char * zieldatei;
+
+	int filedescriptorQuelle;
+	mode_t modeQuelle = S_IRUSR;
+	long long quellsize;
+
+	int filedescriptorZiel;
+	mode_t modeZiel = S_IRUSR | S_IWUSR;
+	long long targetsize;
 
 	if (anzahlArgumente <= 1)
 		exit(EXIT_FAILURE);
@@ -32,20 +43,10 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 		quelldatei = argv[1];
 		zieldatei = argv[2];
 
-		printf("Programmname: %s\n", argv[0]);
-		printf("Quelldatei: %s\n", quelldatei);
-		printf("Zieldatei: %s\n", zieldatei);
-
-		/* Quelldatei öffnen */
-		int filedescriptorQuelle;
-		mode_t modeQuelle = S_IRUSR;
-
 		//Quelldatei Groesse ermitteln
 		struct stat quellstat;
 		stat(quelldatei, &quellstat);
-		printf("GROESSE \n");
-		printf("\t%lld \n", (long long) quellstat.st_size);
-		long long zielsize = (long long) quellstat.st_size;
+		quellsize = (long long) quellstat.st_size;
 
 		if ((filedescriptorQuelle = open(quelldatei, O_RDONLY, modeQuelle))
 				== -1) {
@@ -56,27 +57,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 			printf("Datei %s geöffnet\n", quelldatei);
 		}
 
-		/* Quelldatei Lesen */
-		ssize_t bytes_read;
-		char bufQuelle[zielsize]; //speicher für Dateiinhalt
-		char bufpartone[zielsize / 2];
-		char bufparttwo[zielsize / 2];
-
-		bytes_read = read(filedescriptorQuelle, bufQuelle, zielsize);
-		int half = zielsize / 2;
-		if (bytes_read == -1) {
-			printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
-		} else {
-			printf("Datei konnte gelesen werden!\n");
-			strncpy(bufpartone, bufQuelle + half, half);
-			printf(bufpartone);
-			strncpy(bufparttwo, bufQuelle, half);
-			printf(bufparttwo);
-		}
-
 		/* Zieldatei öffnen/erstellen */
-		int filedescriptorZiel;
-		mode_t modeZiel = S_IRUSR | S_IWUSR;
 
 		if ((filedescriptorZiel = open(zieldatei, O_RDWR | O_CREAT, modeZiel))
 				== -1) {
@@ -87,24 +68,40 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 			printf("Datei %s geöffnet/erstellt\n", zieldatei);
 		}
 
+		/* Quelldatei Lesen */
+		ssize_t error;
+		char bufQuelle[quellsize]; //speicher für Dateiinhalt
+		char bufpartone[quellsize / 2];
+		char bufparttwo[quellsize / 2];
+
+		backupFileContent(filedescriptorQuelle,bufQuelle,quellsize);
+
+		int half = quellsize / 2;
+		printf("Datei konnte gelesen werden!\n");
+		strncpy(bufpartone, bufQuelle + half, half);
+		printf(bufpartone);
+		strncpy(bufparttwo, bufQuelle, half);
+		printf(bufparttwo);
+
+
 		/* Ziel datei lesen*/
 		struct stat zielstat;
 		stat(zieldatei, &zielstat);
-		long long targetsize = (long long) zielstat.st_size;
+		targetsize = (long long) zielstat.st_size;
 
 		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
 			return 1;
 
-		char bufeleventoend[targetsize-10];
-		bytes_read = read(filedescriptorZiel, bufeleventoend, targetsize-10);
-		if (bytes_read == -1) {
+		char bufeleventoend[targetsize - 10];
+		error = read(filedescriptorZiel, bufeleventoend, targetsize - 10);
+		if (error == -1) {
 			printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
 		} else {
 			printf("Datei konnte gelesen werden!\n");
 		}
 
 		/* In Zieldatei schreiben */
-		char bufZiel[zielsize];
+		char bufZiel[quellsize];
 		size_t nbytesZiel = sizeof(bufZiel);
 		ssize_t bytes_written;
 		strcpy(bufZiel, bufQuelle);
@@ -112,14 +109,15 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 		char lastchars[11];
 		char tentotwentyone[10];
 
-		strncpy(lastchars, bufQuelle + zielsize - 11, 10);
+		strncpy(lastchars, bufQuelle + quellsize - 11, 10);
 		printf(lastchars);
 
 		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
 			return 1;
 
 		bytes_written = write(filedescriptorZiel, lastchars, 10);
-		bytes_written = write(filedescriptorZiel, bufeleventoend, sizeof(bufeleventoend));
+		bytes_written = write(filedescriptorZiel, bufeleventoend,
+				sizeof(bufeleventoend));
 
 		puts(bufZiel);
 
@@ -128,19 +126,15 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 		targetsize = (long long) zielstat.st_size;
 		char fulltarget[targetsize];
 		if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)
-					return 1;
-		bytes_read = read(filedescriptorZiel, fulltarget, targetsize);
-		if (bytes_read == -1) {
-				printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
+			return 1;
+		error = read(filedescriptorZiel, fulltarget, targetsize);
+		if (error == -1) {
+			printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
 		} else {
-				printf("Datei konnte gelesen werden!\n");
+			printf("Datei konnte gelesen werden!\n");
 		}
 
 		puts(fulltarget);
-
-
-
-
 
 		/* Dateien schließen */
 		if ((close(filedescriptorQuelle)) == 0
@@ -153,5 +147,16 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 	}
 
 	return EXIT_SUCCESS;
+}
+void backupFileContent(int descriptor, char *buffer, int size) {
+	size_t error = read(descriptor, buffer, size);
+			if (error == -1) {
+				printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
+			} else {
+				printf("Datei konnte gelesen werden!\n");
+			}
+}
+void copyFile(int zielDiscr, int quelDiscr) {
+
 }
 
