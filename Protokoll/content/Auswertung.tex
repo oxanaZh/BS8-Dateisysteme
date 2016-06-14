@@ -1,8 +1,33 @@
 \section{Aufgabe 1}
+Bearbeiten Sie die folgenden Aufgaben und protokollieren Sie Ihr Vorgehen mit-
+hilfe der Vorlage.
+Implementieren Sie ein C-Programm, das folgende Anforderungen erfüllt:
+\begin{itemize}
+	\item Eine Datei wird zum Lesen geöffnet; anschließend wird zuerst die zweite
+	Hälfte und dann die erste H ̈alfte des Dateiinhalts auf dem Bildschirm ausgegeben.
+	\item  Danach wird der Inhalt der Datei in eine neue Datei kopiert, wobei der Dateiname der
+Quell- und der Zieldatei dem Programm als Argument übergeben	werden kann.
+\item  Die letzten 10 Zeichen der ursprünglichen Datei werden ab der 11. Stelle der neuen Datei
+kopiert. Das Dateiende der neuen Datei soll jetzt nach den verschobenen Daten sein (also
+nach dem 21. Zeichen).
+\item Der Inhalt der Datei soll auf dem Bildschirm ausgegeben werden.
+
+
+\end{itemize}
 
 	\subsection{Vorbereitung}
-
+	Für testzwecke wir erstellen eine Datei mit text (gefühlt mit generiertem text)
+	\textit{filetocopy}
 	\subsection{Durchführung}
+	\begin{itemize}
+		\item Damit wir Dateinamen als argumente an unsere programm übergeben können, definieren wir in main
+		Function die Parameter \command{main(int argc, char *argv[])}. Der Parameter
+		\command{argc} beinhaltet anzahl der übergebenen Argumente + 1 (programm name) und
+		\command{argv} beinhaltet alle übergebenen Argumente. Ab index 1 können wir auf die Argumenten Liste
+		zugreifen.
+		
+\end{itemize}
+
 
 	\subsection{Fazit}
 
