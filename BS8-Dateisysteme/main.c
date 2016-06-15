@@ -22,15 +22,16 @@ void backupFileContent(int descriptor, char *buffer, int size);
 int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 	int anzahlArgumente = argc - 1;
-	char * quelldatei;
-	char * zieldatei;
+	char * quellpath;
+	char * zielpath;
 
 	int filedescriptorQuelle;
-	mode_t modeQuelle = S_IRUSR;
-	long long quellsize;
-
 	int filedescriptorZiel;
+
+	mode_t modeQuelle = S_IRUSR;
 	mode_t modeZiel = S_IRUSR | S_IWUSR;
+
+	long long quellsize;
 	long long targetsize;
 
 	if (anzahlArgumente <= 1)
@@ -40,32 +41,32 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 		printf("Zu viele Argumente!, bitte nur Quell- und Zieldatei angeben.");
 	} else {
 		// Pfade einlesen und verarbeiten.
-		quelldatei = argv[1];
-		zieldatei = argv[2];
+		quellpath = argv[1];
+		zielpath = argv[2];
 
 		//Quelldatei Groesse ermitteln
 		struct stat quellstat;
-		stat(quelldatei, &quellstat);
+		stat(quellpath, &quellstat);
 		quellsize = (long long) quellstat.st_size;
 
-		if ((filedescriptorQuelle = open(quelldatei, O_RDONLY, modeQuelle))
+		if ((filedescriptorQuelle = open(quellpath, O_RDONLY, modeQuelle))
 				== -1) {
 			fprintf(stderr, "Datei %s kann nicht geöffnet werden\n",
-					quelldatei);
+					quellpath);
 			exit(1);
 		} else {
-			printf("Datei %s geöffnet\n", quelldatei);
+			printf("Datei %s geöffnet\n", quellpath);
 		}
 
 		/* Zieldatei öffnen/erstellen */
 
-		if ((filedescriptorZiel = open(zieldatei, O_RDWR | O_CREAT, modeZiel))
+		if ((filedescriptorZiel = open(zielpath, O_RDWR | O_CREAT, modeZiel))
 				== -1) {
 			fprintf(stderr, "Datei %s kann nicht geöffnet/erstellt werden.\n",
-					zieldatei);
+					zielpath);
 			exit(1);
 		} else {
-			printf("Datei %s geöffnet/erstellt\n", zieldatei);
+			printf("Datei %s geöffnet/erstellt\n", zielpath);
 		}
 
 		/* Quelldatei Lesen */
@@ -86,7 +87,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 		/* Ziel datei lesen*/
 		struct stat zielstat;
-		stat(zieldatei, &zielstat);
+		stat(zielpath, &zielstat);
 		targetsize = (long long) zielstat.st_size;
 
 		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
@@ -112,7 +113,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 
 		//Neue zusammengestellte Datei ausgeben
-		stat(zieldatei, &zielstat);
+		stat(zielpath, &zielstat);
 		targetsize = (long long) zielstat.st_size;
 		char fulltarget[targetsize];
 		if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)

@@ -4,7 +4,7 @@ hilfe der Vorlage.
 Implementieren Sie ein C-Programm, das folgende Anforderungen erfüllt:
 \begin{itemize}
 	\item Eine Datei wird zum Lesen geöffnet; anschließend wird zuerst die zweite
-	Hälfte und dann die erste H ̈alfte des Dateiinhalts auf dem Bildschirm ausgegeben.
+	Hälfte und dann die erste Hälfte des Dateiinhalts auf dem Bildschirm ausgegeben.
 	\item  Danach wird der Inhalt der Datei in eine neue Datei kopiert, wobei der Dateiname der
 Quell- und der Zieldatei dem Programm als Argument übergeben	werden kann.
 \item  Die letzten 10 Zeichen der ursprünglichen Datei werden ab der 11. Stelle der neuen Datei
@@ -24,9 +24,37 @@ nach dem 21. Zeichen).
 		Function die Parameter \command{main(int argc, char *argv[])}. Der Parameter
 		\command{argc} beinhaltet anzahl der übergebenen Argumente + 1 (programm name) und
 		\command{argv} beinhaltet alle übergebenen Argumente. Ab index 1 können wir auf die Argumenten Liste
-		zugreifen.
-		
-\end{itemize}
+		zugreifen. Als erste Argument erwarten wir Pfad zu Quelldatei und als zweites Argument erwarten wir
+	Pfad zu Zieldatei. Die darauffolgende Argumente werden ignoriert
+	\item wir prüfen ob genug Argumente übergeben wurde, wenn nicht, dann bricht das program ab.
+	\item wenn alle benötigte Argumente vorhanden sind führt das program fort.
+	\item wir definieren zwei Variablen, wo wir die Pfade für Quell- und Zieldatei speichern.
+	\begin{lstlisting}
+char * quellpath;
+char * zielpath;
+\end{lstlisting}
+\item Für Beide Dateien definieren wir jeweils Variable \command{}, die filedescriptor speichern wird,
+es handelt sich hierbei um ein ...  der wird in methoden \command{read}, \command{write},
+\command{close} benutzt um die Datei mit der gearbeitet wird zu spezifizieren.
+	\begin{lstlisting}
+int filedescriptorQuelle;
+int filedescriptorZiel;
+\end{lstlisting}
+\item Für Beide Dateien definieren wir jeweils Variable, die ...
+
+\begin{lstlisting}
+mode_t modeQuelle = S_IRUSR;
+mode_t modeZiel = S_IRUSR | S_IWUSR;
+\end{lstlisting}
+\item Für Beide Dateien definieren wir jeweils Variable, die Länge der Datei speichert
+\begin{lstlisting}
+long long quellsize;
+long long targetsize;
+\end{lstlisting}
+
+
+\end{itemize} %end first lvl itemize%
+
 
 
 	\subsection{Fazit}
