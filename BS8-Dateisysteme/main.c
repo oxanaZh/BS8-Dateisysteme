@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 	printf("argv[1] %s\n", argv[1]);
 	printf("argv[2] %s\n", argv[2]);
 
-	if (argc <= 1){
+	if (argc <= 2){
 		perror("Error: too few arguments");
 		exit(EXIT_FAILURE);
 	}
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 
 	if ((filedescriptorQuelle = open(quellpath, O_RDONLY, modeQuelle)) == -1) {
-		perror("Error in quellpath:");
+		perror("Error by opening quellpath:");
 		exit(1);
 	}
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 	if ((filedescriptorZiel = open(zielpath, O_RDWR | O_CREAT, modeZiel))
 			== -1) {
-		perror("Error in zielpath:");
+		perror("Error by opening zielpath:");
 		exit(1);
 	}
 
@@ -84,8 +84,11 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 	printHalfFile(filedescriptorQuelle, quellsize , bufQuelle);
 
-	if(copyFile(filedescriptorZiel, targetsize, quellsize, bufQuelle)==-1)
+	if(copyFile(filedescriptorZiel, targetsize, quellsize, bufQuelle)==-1){
+		perror("Error by copyFile: ");
 		exit(EXIT_FAILURE);
+	}
+
 
 	//Neue zusammengestellte Datei ausgeben
 	stat(zielpath, &zielstat);
