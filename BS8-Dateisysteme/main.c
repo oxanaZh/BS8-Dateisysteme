@@ -1,12 +1,3 @@
-/*
- ============================================================================
- Name        : Bs8.c
- Author      : 
- Version     :
- Copyright   : 
- Description : Hello World in C, Ansi-style
- ============================================================================
- */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,15 +6,21 @@
 #include <fcntl.h> //fuer Kontrollfluss
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
+#include <math.h>
 
+#define MAX_PATH 1024
+#define OUT 1
+
+extern int errno;
 
 void backupFileContent(int descriptor, char *buffer, int size);
-
+void printHalfFile(int filedescr, int filesize , char *bufQuelle);
 int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
-	int anzahlArgumente = argc - 1;
-	char * quellpath;
-	char * zielpath;
+
+	char quellpath[MAX_PATH];
+	char zielpath[MAX_PATH];
 
 	int filedescriptorQuelle;
 	int filedescriptorZiel;
@@ -34,114 +31,123 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 	long long quellsize;
 	long long targetsize;
 
-	if (anzahlArgumente <= 1)
+	printf("argv %d\n", argc);
+	printf("argv[1] %s\n", argv[1]);
+	printf("argv[2] %s\n", argv[2]);
+
+	if (argc <= 1){
+		perror("Error: too few arguments");
+		exit(EXIT_FAILURE);
+	}
+
+
+
+	// Pfade einlesen und verarbeiten.
+
+	if(realpath(argv[1], quellpath) == NULL){
+		perror("Error argv[1]:");
+		exit(EXIT_FAILURE);
+	}
+	if(realpath(argv[2], zielpath) == NULL){
+			perror("Error argv[2]:");
+			exit(EXIT_FAILURE);
+		}
+
+	//Datei Groesse ermitteln
+	struct stat quellstat;
+	stat(quellpath, &quellstat);
+	quellsize = (long long) quellstat.st_size;
+
+	struct stat zielstat;
+	stat(zielpath, &zielstat);
+	targetsize = (long long) zielstat.st_size;
+
+
+	char bufQuelle[quellsize]; //speicher für Dateiinhalt
+
+
+	if ((filedescriptorQuelle = open(quellpath, O_RDONLY, modeQuelle)) == -1) {
+		perror("Error in quellpath:");
+		exit(1);
+	}
+
+	/* Zieldatei öffnen/erstellen */
+
+	if ((filedescriptorZiel = open(zielpath, O_RDWR | O_CREAT, modeZiel))
+			== -1) {
+		perror("Error in zielpath:");
+		exit(1);
+	}
+
+	backupFileContent(filedescriptorQuelle, bufQuelle, quellsize);
+
+
+	printHalfFile(filedescriptorQuelle, quellsize , bufQuelle);
+
+	if(copyFile(filedescriptorZiel, targetsize, quellsize, bufQuelle)==-1)
 		exit(EXIT_FAILURE);
 
-	if (anzahlArgumente > 3) {
-		printf("Zu viele Argumente!, bitte nur Quell- und Zieldatei angeben.");
+	//Neue zusammengestellte Datei ausgeben
+	stat(zielpath, &zielstat);
+	targetsize = (long long) zielstat.st_size;
+	char fulltarget[targetsize];
+	if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)
+		return 1;
+	backupFileContent(filedescriptorZiel, fulltarget, targetsize);
+	puts(fulltarget);
+
+	/* Dateien schließen */
+	if ((close(filedescriptorQuelle)) == 0 && close(filedescriptorZiel) == 0) {
+		printf("Dateien wurden geschlossen!\n");
 	} else {
-		// Pfade einlesen und verarbeiten.
-		quellpath = argv[1];
-		zielpath = argv[2];
-
-		//Quelldatei Groesse ermitteln
-		struct stat quellstat;
-		stat(quellpath, &quellstat);
-		quellsize = (long long) quellstat.st_size;
-
-		if ((filedescriptorQuelle = open(quellpath, O_RDONLY, modeQuelle))
-				== -1) {
-			fprintf(stderr, "Datei %s kann nicht geöffnet werden\n",
-					quellpath);
-			exit(1);
-		} else {
-			printf("Datei %s geöffnet\n", quellpath);
-		}
-
-		/* Zieldatei öffnen/erstellen */
-
-		if ((filedescriptorZiel = open(zielpath, O_RDWR | O_CREAT, modeZiel))
-				== -1) {
-			fprintf(stderr, "Datei %s kann nicht geöffnet/erstellt werden.\n",
-					zielpath);
-			exit(1);
-		} else {
-			printf("Datei %s geöffnet/erstellt\n", zielpath);
-		}
-
-		/* Quelldatei Lesen */
-		ssize_t error;
-		char bufQuelle[quellsize]; //speicher für Dateiinhalt
-		char bufpartone[quellsize / 2];
-		char bufparttwo[quellsize / 2];
-
-		backupFileContent(filedescriptorQuelle,bufQuelle,quellsize);
-
-		int half = quellsize / 2;
-		printf("Datei konnte gelesen werden!\n");
-		strncpy(bufpartone, bufQuelle + half, half);
-		printf(bufpartone);
-		strncpy(bufparttwo, bufQuelle, half);
-		printf(bufparttwo);
-
-
-		/* Ziel datei lesen*/
-		struct stat zielstat;
-		stat(zielpath, &zielstat);
-		targetsize = (long long) zielstat.st_size;
-
-		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
-			return 1;
-
-		char bufeleventoend[targetsize - 10];
-		backupFileContent(filedescriptorZiel,bufeleventoend,targetsize-10);
-
-
-		/* In Zieldatei schreiben */
-		ssize_t bytes_written;
-
-		char lastchars[11];
-
-		strncpy(lastchars, bufQuelle + quellsize - 11, 10);
-
-		if (lseek(filedescriptorZiel, 10, SEEK_SET) == -1)
-			return 1;
-
-		bytes_written = write(filedescriptorZiel, lastchars, 10);
-		bytes_written = write(filedescriptorZiel, bufeleventoend,
-				sizeof(bufeleventoend));
-
-
-		//Neue zusammengestellte Datei ausgeben
-		stat(zielpath, &zielstat);
-		targetsize = (long long) zielstat.st_size;
-		char fulltarget[targetsize];
-		if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)
-			return 1;
-		backupFileContent(filedescriptorZiel,fulltarget,targetsize);
-		puts(fulltarget);
-
-		/* Dateien schließen */
-		if ((close(filedescriptorQuelle)) == 0
-				&& close(filedescriptorZiel) == 0) {
-			printf("Dateien wurden geschlossen!\n");
-		} else {
-			printf("Datei konnte nicht geschlossen werden!\n");
-		}
-
+		printf("Datei konnte nicht geschlossen werden!\n");
 	}
 
 	return EXIT_SUCCESS;
 }
 void backupFileContent(int descriptor, char *buffer, int size) {
 	size_t error = read(descriptor, buffer, size);
-			if (error == -1) {
-				printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
-			} else {
-				printf("Datei konnte gelesen werden!\n");
-			}
+	if (error == -1) {
+		printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
+	}
 }
-void copyFile(int zielDiscr, int quelDiscr) {
+int copyFile(int zielDiscr, int targetsize, int  quellsize, char *bufQuelle) {
 
+	if (lseek(zielDiscr, 10, SEEK_SET) == -1){
+		perror("Couldnt set pointer ");
+		return -1;
+	}
+
+	char bufeleventoend[targetsize - 10];
+	backupFileContent(zielDiscr, bufeleventoend, targetsize - 10);
+
+	/* In Zieldatei schreiben */
+	ssize_t bytes_written;
+
+	char lastchars[11];
+
+	strncpy(lastchars, bufQuelle + quellsize - 11, 10);
+
+	if (lseek(zielDiscr, 10, SEEK_SET) == -1){
+		perror("Couldnt set pointer ");
+		return -1;
+	}
+
+	bytes_written = write(zielDiscr, lastchars, 10);
+	bytes_written = write(zielDiscr, bufeleventoend,
+			sizeof(bufeleventoend));
+}
+void printHalfFile(int filedescr, int filesize , char *bufQuelle){
+
+
+		int secondhalf = ceil(filesize/2);
+		int firsthalf = filesize/2;
+		char bufpartone[secondhalf];
+		char bufparttwo[firsthalf];
+
+		strncpy(bufpartone, bufQuelle + firsthalf, secondhalf);
+		write(OUT,bufpartone,secondhalf);
+		strncpy(bufparttwo, bufQuelle, firsthalf);
+		write(OUT,bufparttwo, firsthalf);
 }
 
