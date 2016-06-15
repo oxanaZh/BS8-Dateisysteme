@@ -35,7 +35,10 @@ char * zielpath;
 \end{lstlisting}
 
 
-Zudem definieren wir Variablen die den Quell- respektive den Zielstream halten,
+Zudem definieren wir Variablen die den Quell- respektive den ZielFiledescriptor halten.
+Ein File Descriptor ist ein Handler um mittels In-und Output Methoden mit dieser
+File umzugehen. In C ist eine Abbildung als Integer üblich. Dabei geben
+negative Werte an, dass eine Fehlerbedingung vorliegt.
 \begin{lstlisting}
 int filedescriptorQuelle;
 int filedescriptorZiel;
@@ -65,12 +68,12 @@ Wurden nicht genügend Parameter übergeben, also nicht Quelle und Ziel, so soll
 das Programm abbrechen. Zuvor übermitteln wir mittels \command{perror} den Fehler
 über den \command{stderr} Output Stream.
 
-\begin{lslisting}
-	if (argc <= 2){
-		perror("Error: too few arguments");
-		exit(EXIT_FAILURE);
-	}
-\end{lslisting}
+\begin{lstlisting}
+if (argc <= 2){
+	perror("Error: too few arguments");
+	exit(EXIT_FAILURE);
+}
+\end{lstlisting}
 
 \item Nun ermitteln wir den absoluten Pfad anhand der Eingaben des Users.
 Konnte der Pfad nicht aufgelöst werden, also z.b. wenn die Datei nicht
@@ -81,12 +84,236 @@ aus.
 Hierbei ist anzumerken dass der Eingabeparameter eine beliebige Fehleranmerkung
 ist. \command{perror} gibt nämlich den mit dem in \command{errno} hinterlegten
 Fehlercode aus.
-\begin{lslisting}
-	if(realpath(argv[1], quellpath) == NULL){
-		perror("Error argv[1]:");
-		exit(EXIT_FAILURE);
-	}
-\end{lslisting}
+\begin{lstlisting}
+if(realpath(argv[1], quellpath) == NULL){
+	perror("Error argv[1]:");
+	exit(EXIT_FAILURE);
+}
+\end{lstlisting}
+\item Der Ziel Pfad wird auf gleiche Weise aufgelöst wie Quellpfad.
+\begin{lstlisting}
+if(realpath(argv[2], zielpath) == NULL){
+	perror("Error argv[2]:");
+	exit(EXIT_FAILURE);
+}
+\end{lstlisting}
+\item Als nächstes ermitteln wir die Dateigrößen für die Quell- und Zieldatei.
+Dies geschieht in dem wir eine in \command{<sys/stat.h>} definierte Struktur initialisieren
+\command{quellstat} und hier mit Hilfe der Funktion \command{stat}
+die Informationen über die Datei speichern. Anschließend
+speichern wir in der Variable \command{quellsize} die in \command{quellstat} enthaltene Information über
+die Dateigröße \command{st_size}. Auf gleiche Weise ermitteln wir auch die Größe des Zieldatei.
+\begin{lstlisting}
+struct stat quellstat;
+stat(quellpath, &quellstat);
+quellsize = (long long) quellstat.st_size;
+
+struct stat zielstat;
+stat(zielpath, &zielstat);
+targetsize = (long long) zielstat.st_size;
+\end{lstlisting}
+
+\item Wir legen eine Variable \command{char bufQuelle[quellsize];} an um den Dateinhalt
+aus der Quelle hier zu speichern und weiter zu verwenden.
+
+ \item Anschließend können wir beide Dateien mit der function \command{open} öffnen.
+ Die function liefert einen filedescriptor (um den Filestream zu verwalten),
+ wenn die Datei geöffnet werden konnte,
+ sonst liefert sie den Wert -1. Das nutzen wir in der if abfrage um Fehler abzufangen
+ und abzugeben.
+ Der Filestream wird im Read-Only Modus geöffnet, mit den oben beschriebenen
+ Zugriffsrechten.
+ \begin{lstlisting}[language=C]
+if ((filedescriptorQuelle = open(quellpath,
+ O_RDONLY, modeQuelle)) == -1) {
+perror("Error by opening quellpath:");
+exit(1);
+}
+ \end{lstlisting}
+
+\item Das selbe wird für das Ziel getan. Allerdings öffnen wir hier die
+Datei im Lese- und Schreibmodus bzw. erzeugen die Datei wenn sie noch
+nicht existiert. Die Modi der Operationen sind bereits oben beschrieben worden.
+\begin{lstlisting}
+if ((filedescriptorZiel = open(zielpath, O_RDWR
+| O_CREAT, modeZiel))
+	== -1) {
+perror("Error by opening zielpath:");
+exit(1);
+}
+\end{lstlisting}
+
+\item Wir definieren eine Funktion \command{backupFileContent},
+die uns hilft die Dateiinhalte in bufQuelle zu speichern
+\begin{itemize}
+	\item Die Methode nimmt 3 Argumente an.
+	Der Integer descriptor gibt den übergebenen File Descriptor an.
+	Der char Pointer buffer wird mit den gelesenen Daten beschrieben.
+	Der Integer size gibt die Länge an die aus dem File gelesen wird an.
+	In unserem Fall ist dies immer die gesamte Länge des Files.
+	Im Fehlerfall, also bei einem negativen Wert, wird ein Fehler ausgegeben.
+	Nach dem Methodenaufruf wurde somit die übergebene Datei in ein
+	char Array gelesen.
+	\begin{lstlisting}
+void backupFileContent(int descriptor, char *buffer, int size) {
+size_t error = read(descriptor, buffer, size);
+if (error == -1) {
+perror("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.");
+}
+}
+	\end{lstlisting}
+
+\end{itemize}
+
+\item Nach dem Methodenaufruf wurde die bufQuelle mit dem Inhalt der
+gelesenen Datei gefüllt.
+\command{backupFileContent(filedescriptorQuelle, bufQuelle, quellsize);}
+
+\item Nun erfolgt die Ausgabe der Datei. Dabei soll zunächst die zweite
+Hälfte und dann die erste Hälfte ausgegeben werden.
+Hierzu definieren wir eine Funktion die diese Ausgabe übernimmt.
+\command{printHalfFile()}
+
+\begin{itemize}
+	\item Die Methode nimmt 2 Eingabeparameter.
+	Der Integer filesize hält die Größe der auszugebenden
+	Dateien.
+	Der char Buffer hält den auszugebenden Text.
+
+	Innerhalb der Methode wird zunächst die Hälfte der Größe ermittelt.
+	Hierbei ist es möglich dass der Buffer einer ungerade Anzahl an
+	Zeichen hat. In diesem Fall, damit wir kein Zeichen verlieren, müssen
+	wir mittels \command{ceil} das Ergebnis aufrunden (aus <math.h>).
+	Dieser Schritt wird nur für die zweite Hälfte getan.
+	Die Hälfte, ohne runden, wird nun für die erste Hälfte ausgeführt.
+	Mit diesen zwei Größen erstellen wir uns 2 char Arrays die den Text
+	halten werden.
+
+	Mittels \command{strncpy} speichern wir uns nun die zweite Hälfte aus
+	der bufQuelle. Hierbei startet der Pointer, der Kopierschritt, an der mittleren
+	Stelle (+ firsthalf) für die Länge von secondhalf (den Rest des Strings).
+	Ziel ist bufpartone.
+	Mittels \command{write} geben wir den Text nun aus. Die Konstante
+	\command{OUT} repräsentiert den Wert 1, welcher den \command{stdout}
+	File Stream darstellt. Auf diesen Stream möchten wir schreiben (dies sind
+	die zu sehenden Ausgaben). bufpartone gibt den zu schreibenden String aus und
+	secondhalf die Länge.
+	Für den bufparttwo wird ähnliches getan, nur das beim Kopieren des Strings
+	der Zeiger an der ersten Stelle anfängt und bis zur Mitte läuft.
+	Auch dies wird dann ausgegeben.
+
+	\begin{lstlisting}
+void printHalfFile(int filesize , char *bufQuelle){
+int secondhalf = ceil(filesize/2);
+int firsthalf = filesize/2;
+char bufpartone[secondhalf];
+char bufparttwo[firsthalf];
+
+strncpy(bufpartone, bufQuelle + firsthalf, secondhalf);
+write(OUT,bufpartone,secondhalf);
+strncpy(bufparttwo, bufQuelle, firsthalf);
+write(OUT,bufparttwo, firsthalf);
+}
+\end{lstlisting}
+
+\end{itemize}
+
+\item Als nächstes definieren wir eine Funktion \command{copyFile}
+um die 10 letzten Zeichen aus der Quelldatei zu lesen und in die Ziel Datei ab der 11. Stelle zu schreiben.
+\begin{itemize}
+		\item die Funktion nimmt als erstes Argument ein Filedescriptor für das Ziel Document,
+		als zweiten Argument die Größe der ZielDatei, als dritten Argument die Größe des Quelldatei
+		und als viertes Argument einen pointer auf ein chararray, das den Inhalt der Quelldatei beinhalten soll
+		\item mit der Funktion \command{lseek} verschieben wir den cursor an die
+		gewünschte Stelle.
+		Dabei gibt die Zahl 10 die Stellen an um die wir den cursor verschieben
+		möchten, 10 laut Aufgabe. Das \command{SEEK_SET} gibt an ab welcher Position wir
+		den cursor verschieben möchten. \command{SEEK_SET} bezieht sich dabei auf
+		den Dateibeginn. Wenn die Verschiebung nicht erfolgreich war, wird ein Wert -1 zurückgeliefert.
+		Dies nutzen wir in der if-Abfrage und brechen die funktion ab wenn der cursor nicht verschoben werden konnte.
+		\item Nachdem der cursor in die Zieldatei verschoben wurde legen wir ein chararray an,
+
+		\command{char bufeleventoend[targetsize - 10];},
+
+		dass alle Zeichen des Ziels bis auf die ersten 10 halten soll.
+
+		\item Mittels \command{backupFileContent} schreiben wir uns die
+		Zeichen 11-Ende in das Array bufeleventoend. Da der cursor an Stelle 11
+		geschoben ist liest der Filedescriptor auch erst ab dieser Stelle.
+		Die Länge können wir um 10 dekrementieren.
+		Das Array hält nun alle Zeichen 10-Ende.
+
+	\begin{lstlisting}
+int copyFile(int zielDiscr,
+int targetsize, int  quellsize,
+char *bufQuelle) {
+
+if (lseek(zielDiscr, 10, SEEK_SET) == -1){
+perror("Couldnt set pointer ");
+return -1;
+}
+
+char bufeleventoend[targetsize - 10];
+backupFileContent(zielDiscr, bufeleventoend, targetsize - 10);
+...
+	\end{lstlisting}
+
+	\item Zunächst legen wir ein Array für die letzten 10 Zeichen
+	der Quelle an.
+	Dieses befüllen wir mittels \command{strncpy}. Dazu fangen wir das
+	Kopieren an der 11-letzten Stelle für 10 Zeichen an. Das Array hält nun
+	die letzten 10 Zeichen.
+
+	Nun können wir den cursor im Ziel wieder auf Stelle 10 setzen. Ist dieser
+	Schritt geglückt so befüllen wir die Datei mit den restlichen Inhalt.
+
+	Mittels \command{write} wird nun ab der Stelle des Cursors zunächst das
+	Array lastchars in die Datei des Zieldescriptors geschrieben.
+	Anschließend schreiben wir die Zeichen aus bufeleventoend, die den Rest
+	der Zeichen der Zieldatei halten wieder in die Zieldatei ein. Dieser
+	Schritt ist nötig da der erste \command{write} Vorgang die alten Zeichen
+	überschrieben hat.
+
+	Nun ist die Datei wie gewünscht zusammengestellt worden.
+
+	\begin{lstlisting}
+...
+/* In Zieldatei schreiben */
+ssize_t bytes_written;
+
+char lastchars[11];
+
+strncpy(lastchars, bufQuelle + quellsize - 11, 10);
+
+if (lseek(zielDiscr, 10, SEEK_SET) == -1){
+perror("Couldnt set pointer ");
+return -1;
+}
+
+bytes_written = write(zielDiscr, lastchars, 10);
+bytes_written = write(zielDiscr, bufeleventoend,
+sizeof(bufeleventoend));
+}
+\end{lstlisting}
+
+\end{itemize}
+
+\item in \command{main} rufen wir die beschriebene Funktion \command{printHalfFile} auf.
+\item in \command{main} rufen wir die beschriebene Funktion \command{copyFile}
+
+\item Nachdem die Funktionen ihre Aufgaben erfüllt haben, müssen wir die geöffneten Dateien schließen.
+Dabei nutzen wir die function \command{close}, der wir einen filedescriptor übergeben. Die function
+liefert einen Wert = 0 zurück wenn die Datei erfolgreich geschlossen wurde. Sonst geben wir einen Fehler aus.
+\begin{lstlisting}
+if ((close(filedescriptorQuelle)) == 0
+ && close(filedescriptorZiel) == 0) {
+ printf("Dateien wurden geschlossen!\n");
+} else {
+ perror("Datei konnte nicht geschlossen werden!\n");
+}
+\end{lstlisting}
+
+
 
 \end{itemize} %end first lvl itemize%
 

@@ -15,7 +15,9 @@
 extern int errno;
 
 void backupFileContent(int descriptor, char *buffer, int size);
-void printHalfFile(int filedescr, int filesize , char *bufQuelle);
+void printHalfFile(int filesize , char *bufQuelle);
+int copyFile(int zielDiscr, int targetsize, int  quellsize, char *bufQuelle);
+
 int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 
 
@@ -82,7 +84,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 	backupFileContent(filedescriptorQuelle, bufQuelle, quellsize);
 
 
-	printHalfFile(filedescriptorQuelle, quellsize , bufQuelle);
+	printHalfFile(quellsize , bufQuelle);
 
 	if(copyFile(filedescriptorZiel, targetsize, quellsize, bufQuelle)==-1){
 		perror("Error by copyFile: ");
@@ -90,20 +92,11 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 	}
 
 
-	//Neue zusammengestellte Datei ausgeben
-	stat(zielpath, &zielstat);
-	targetsize = (long long) zielstat.st_size;
-	char fulltarget[targetsize];
-	if (lseek(filedescriptorZiel, 0, SEEK_SET) == -1)
-		return 1;
-	backupFileContent(filedescriptorZiel, fulltarget, targetsize);
-	puts(fulltarget);
-
 	/* Dateien schließen */
 	if ((close(filedescriptorQuelle)) == 0 && close(filedescriptorZiel) == 0) {
 		printf("Dateien wurden geschlossen!\n");
 	} else {
-		printf("Datei konnte nicht geschlossen werden!\n");
+		perror("Datei konnte nicht geschlossen werden!\n");
 	}
 
 	return EXIT_SUCCESS;
@@ -111,7 +104,7 @@ int main(int argc, char *argv[]) { // argumetenzaehler, argumentenvektor
 void backupFileContent(int descriptor, char *buffer, int size) {
 	size_t error = read(descriptor, buffer, size);
 	if (error == -1) {
-		printf("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
+		perror("Inhalt konnte nicht gelesen werden bzw. Datei ist leer.\n");
 	}
 }
 int copyFile(int zielDiscr, int targetsize, int  quellsize, char *bufQuelle) {
@@ -140,7 +133,7 @@ int copyFile(int zielDiscr, int targetsize, int  quellsize, char *bufQuelle) {
 	bytes_written = write(zielDiscr, bufeleventoend,
 			sizeof(bufeleventoend));
 }
-void printHalfFile(int filedescr, int filesize , char *bufQuelle){
+void printHalfFile(int filesize , char *bufQuelle){
 
 
 		int secondhalf = ceil(filesize/2);
